@@ -4,6 +4,7 @@ __author__ = 'Huang, Hua'
 import time
 import datetime
 import calendar
+from dateutil import parser
 from jobs.build import CubeBuildJob
 from jobs.cube import CubeJob
 from models.request import JobBuildRequest
@@ -58,8 +59,7 @@ class CubeWorker:
                         if endtime is not None:
                             # build_request.startTime = instance_list[0].segments[instance_list[0].segments.__len__() - 1].date_range_end
                             build_request.endTime = \
-                                (int(time.mktime(datetime.datetime.strptime(endtime,
-                                                                            "%Y-%m-%d").timetuple())) - time.timezone) * 1000
+                                (int(time.mktime(parse(endtime).timetuple())) - time.timezone) * 1000
                         else:
                             d = datetime.datetime.utcnow()
                             build_request.endTime = calendar.timegm(d.utctimetuple()) * 1000
