@@ -11,11 +11,11 @@ from scheduler.workers.cube import CubeWorker
 from jobs.cube import CubeJob
 from models.io.readers import CSVReader
 from jobs.build import CubeBuildJob
-
+from models.request import JobBuildRequest
 
 class ClientJob:
     @staticmethod
-    def build(cube_name_list, endtime=None):
+    def build(cube_name_list, buildType, startTime=None, endtime=None):
         run_cube_job_id = '1'
         check_cube_job_id = '2'
         scheduler = BackgroundScheduler()
@@ -28,9 +28,9 @@ class ClientJob:
         CubeWorker.run_cube_job_id = run_cube_job_id
         CubeWorker.check_cube_job_id = check_cube_job_id
         # start the run cube job immediately
-        CubeWorker.run_cube_job(endtime)
+        CubeWorker.run_cube_job(buildType, startTime, endtime)
 
-        scheduler.add_job(CubeWorker.run_cube_job, 'interval', seconds=30, id=run_cube_job_id, args=[endtime])
+        scheduler.add_job(CubeWorker.run_cube_job, 'interval', seconds=30, id=run_cube_job_id, args=[buildType, startTime, endtime])
         scheduler.add_job(CubeWorker.check_cube_job, 'interval', seconds=30, id=check_cube_job_id)
         scheduler.start()
 
@@ -49,7 +49,7 @@ class ClientJob:
         pass
 
     @staticmethod
-    def build_cube_from_csv(csv_file, database, endtime=None, timed_build=None, crontab_options=None):
+    def build_cube_from_csv(buildType, csv_file, database, starttime=None, endtime=None, timed_build=None, crontab_options=None):
         cube_dic_list = CSVReader.get_cube_desc_list_from_csv(csv_file, database)
         cube_name_list = []
 
@@ -62,7 +62,7 @@ class ClientJob:
             scheduler = BlockingScheduler()
             if timed_build is 'i' and crontab_options is not None:
                 scheduler.add_job(ClientJob.build, 'interval', hours=int(crontab_options),
-                                  args=[cube_name_list, endtime])
+                                  args=[cube_name_list, buildType, starttime, endtime])
                 try:
                     scheduler.start()
                 except (KeyboardInterrupt, SystemExit):
@@ -74,7 +74,7 @@ class ClientJob:
                                       run_date=datetime.datetime(int(time_list[0]), int(time_list[1]),
                                                                  int(time_list[2]), int(time_list[3]),
                                                                  int(time_list[4]), int(time_list[5])),
-                                      args=[cube_name_list, endtime])
+                                      args=[cube_name_list, buildType, starttime, endtime])
                     try:
                         scheduler.start()
                     except (KeyboardInterrupt, SystemExit):
@@ -87,7 +87,7 @@ class ClientJob:
             ClientJob.build(cube_name_list, endtime)
 
     @staticmethod
-    def build_cube_from_names_or_file(cube_name, names_file, endtime=None, timed_build=None, crontab_options=None):
+    def build_cube_from_names_or_file(buildType, cube_name, names_file, starttime=None, endtime=None, timed_build=None, crontab_options=None):
         cube_name_list_from_file = []
 
         if names_file is not None:
@@ -103,7 +103,7 @@ class ClientJob:
 
             if timed_build is 'i' and crontab_options is not None:
                 scheduler.add_job(ClientJob.build, 'interval', hours=int(crontab_options),
-                                  args=[cube_name_list, endtime])
+                                  args=[cube_name_list, buildType, starttime, endtime])
                 try:
                     scheduler.start()
                 except (KeyboardInterrupt, SystemExit):
@@ -116,7 +116,7 @@ class ClientJob:
                                       run_date=datetime.datetime(int(time_list[0]), int(time_list[1]),
                                                                  int(time_list[2]), int(time_list[3]),
                                                                  int(time_list[4]), int(time_list[5])),
-                                      args=[cube_name_list, endtime])
+                                      args=[cube_name_list, buildType, starttime, endtime])
                     try:
                         scheduler.start()
                     except (KeyboardInterrupt, SystemExit):
@@ -126,7 +126,7 @@ class ClientJob:
             else:
                 print 'Bad command line!'
         else:
-            ClientJob.build(cube_name_list, endtime)
+            ClientJob.build(cube_name_list, buildType, starttime, endtime)
 
     @staticmethod
     def create_cube_from_csv(csv_file, project, database):

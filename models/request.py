@@ -62,6 +62,7 @@ class JobBuildRequest(JsonSerializableObj):
     python class mapping to org.apache.kylin.rest.request.JobBuildRequest
     """
     BUILD = 'BUILD'
+    REFRESH = 'REFRESH'
     MERGE = 'MERGE'
 
     def __init__(self):

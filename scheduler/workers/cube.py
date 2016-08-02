@@ -23,7 +23,7 @@ class CubeWorker:
         pass
 
     @staticmethod
-    def run_cube_job(endtime):
+    def run_cube_job(buildType, starttime, endtime):
         if CubeWorker.all_finished():
             return True
 
@@ -54,15 +54,37 @@ class CubeWorker:
                                 print "cancel an error job with uuid=", error_job.uuid, "for cube=", cube_name
 
                         # run cube job
-                        # instance_list = CubeJob.list_cubes(cube_name)
+                        instance_list = None
                         build_request = JobBuildRequest()
-                        if endtime is not None:
-                            # build_request.startTime = instance_list[0].segments[instance_list[0].segments.__len__() - 1].date_range_end
-                            build_request.endTime = \
-                                (int(time.mktime(parse(endtime).timetuple())) - time.timezone) * 1000
-                        else:
-                            d = datetime.datetime.utcnow()
-                            build_request.endTime = calendar.timegm(d.utctimetuple()) * 1000
+                        if buildType is not None:
+                            build_request.buildType = buildType
+                            
+                        if buildType == JobBuildRequest.REFRESH:
+                            instance_list = CubeJob.list_cubes(cube_name)
+                            
+                            if(len(instance_list) == 0):
+                                raise Exception("Cube does not have segments.")
+                            
+                            if starttime is None or endtime is None:
+                                segments = [instance_list[0].segments[len(instance_list[0].segments) - 1]]
+                            else:
+                                segments = CubeWorker.determine_segment_range(instance_list[0].segments, starttime, endtime)
+                            
+                            if(len(segments) < 1):
+                                raise LookupError("Entered date: %s and %s is out of range of segments" % (str(starttime), str(endtime)))
+                            
+                            build_request.startTime = int(segments[0].date_range_start)
+                            build_request.endTime = int(segments[len(segments) - 1].date_range_end)
+                            number_of_segments = len(segments)
+                            print "merging %d segments (%s) from: %s to: %s" % (number_of_segments, ', '.join([s.uuid for s in segments]), build_request.startTime, build_request.endTime)
+                        elif buildType == JobBuildRequest.BUILD:
+                            if endtime is not None:
+                                # build_request.startTime = instance_list[0].segments[instance_list[0].segments.__len__() - 1].date_range_end
+                                build_request.endTime = \
+                                    (int(time.mktime(parser.parse(endtime).timetuple())) - time.timezone) * 1000
+                            else:
+                                d = datetime.datetime.utcnow()
+                                build_request.endTime = calendar.timegm(d.utctimetuple()) * 1000
 
                         current_job_instance = CubeBuildJob.rebuild_cube(cube_name, build_request)
 
@@ -71,7 +93,25 @@ class CubeWorker:
                             CubeWorker.job_instance_dict[cube_name] = current_job_instance
                             max_allow -= 1
                         CubeWorker.job_retry_dict[cube_name] = try_cnt + 1
-
+                        
+    @staticmethod
+    def determine_segment_range(segments, dt_start, dt_end):
+        pointer_dt_start = (int(time.mktime(parser.parse(dt_start).timetuple())) - time.timezone) * 1000
+        pointer_dt_end = (int(time.mktime(parser.parse(dt_end).timetuple())) - time.timezone) * 1000
+        
+        if(pointer_dt_start > pointer_dt_end):
+            raise Exception("Start date (%s) is older than end date (%s)!" % (str(pointer_dt_start), str(pointer_dt_end)))
+        
+        segments_to_refresh = []
+        for segment in segments:
+            if((pointer_dt_start <= segment.date_range_start and segment.date_range_end <= pointer_dt_end) or       # |..| \      
+                (segment.date_range_start <= pointer_dt_start and pointer_dt_start <= segment.date_range_end) or    # .|.| \  
+                (pointer_dt_end <= segment.date_range_start and segment.date_range_end <= pointer_dt_end) ):        # |.|.
+                segments_to_refresh.append(segment)
+         
+        return sorted(segments_to_refresh, key = lambda x: x.date_range_start)
+                  
+          
     @staticmethod
     def check_cube_job():
         for cube_name in CubeWorker.job_instance_dict:

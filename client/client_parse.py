@@ -12,9 +12,10 @@ def menu_parser():
     parser.add_option("-c", "--create_cubes", action="store_true",
                       dest="create_cubes",
                       help="Create cubes with descriptions in the csv file to your project.")
-    parser.add_option("-b", "--build_cubes", action="store_true",
+    parser.add_option("-b", "--build_cubes",
                       dest="build_cubes",
-                      help="Build cubes with descriptions in the csv file to your project.")
+                      default='BUILD',
+                      help="Build cubes with descriptions in the csv file to your project. Specify buildType BUILD, REFRESH, MERGE [default=%default]")
     parser.add_option("-s", "--check_job_status", action="store_true",
                       dest="check_job_status",
                       help="Check job status with options.")
@@ -24,7 +25,6 @@ def menu_parser():
     parser.add_option("-r", "--resume_job", action="store_true",
                       dest="resume_job",
                       help="Resume jobs with options.")
-
     parser.add_option("-D", "--database",
                       dest="database",
                       default="default",
@@ -33,8 +33,12 @@ def menu_parser():
                       dest="project",
                       default="learn_kylin",
                       help="Specify your project,[default=%default].")
-    parser.add_option("-T", "--time",
-                      dest="time",
+    parser.add_option("-T", "--time-start",
+                      dest="time_start",
+                      default=None,
+                      help="Set the start time of cube building,[default=%default].")				  
+    parser.add_option("-E", "--time-end",
+                      dest="time_end",
                       default=None,
                       help="Set the end time of cube building,[default=%default].")
     parser.add_option("-F", "--cubeDefFile",
@@ -69,14 +73,14 @@ def menu_parser():
         ClientJob.create_cube_from_csv(options.cubeDefFile, options.project, options.database)
         status = False
 
-    if options.build_cubes == True and (
+    if options.build_cubes is not None and (
             options.cubeNameFile is not None or options.cube_name is not None) and status == True:
-        ClientJob.build_cube_from_names_or_file(options.cube_name, options.cubeNameFile, options.time,
+        ClientJob.build_cube_from_names_or_file(options.build_cubes, options.cube_name, options.cubeNameFile, options.time_start, options.time_end,
                                                 options.schedule_build, options.crontab_options)
         status = False
 
-    if options.build_cubes == True and options.cubeDefFile is not None and status == True:
-        ClientJob.build_cube_from_csv(options.cubeDefFile, options.database, options.time, options.schedule_build,
+    if options.build_cubes is not None and options.cubeDefFile is not None and status == True:
+        ClientJob.build_cube_from_csv(options.build_cubes, options.cubeDefFile, options.database, options.time_start, options.time_end, options.schedule_build,
                                       options.crontab_options)
         status = False
 
