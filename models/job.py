@@ -5,10 +5,12 @@ from models.object import JsonSerializableObj
 
 
 class CubeJobStatus:
+    NEW = 'NEW'
+    PENDING = 'PENDING'
     RUNNING = 'RUNNING'
     ERROR = 'ERROR'
     FINISHED = 'FINISHED'
-    DISCARD = 'DISCARDED'
+    DISCARDED = 'DISCARDED'
 
 
 class JobInstance(JsonSerializableObj):
@@ -59,8 +61,8 @@ class JobInstance(JsonSerializableObj):
         for job_step in self.steps:
             if job_step.step_status in CubeJobStatus.ERROR:
                 return CubeJobStatus.ERROR
-            if job_step.step_status in CubeJobStatus.DISCARD:
-                return CubeJobStatus.DISCARD
+            if job_step.step_status in CubeJobStatus.DISCARDED:
+                return CubeJobStatus.DISCARDED
 
         # check the last step
         job_step = self.steps[-1]

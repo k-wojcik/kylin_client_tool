@@ -11,6 +11,10 @@ from models.request import JobBuildRequest
 from models.job import JobInstance, CubeJobStatus
 from settings.settings import KYLIN_JOB_MAX_COCURRENT, KYLIN_JOB_MAX_RETRY
 
+class CubeWorkerStatus:
+    ERROR = 'ERROR'
+    SUCCESS = 'SUCCESS'
+    WORKING = 'WORKING'
 
 class CubeWorker:
     job_instance_dict = {}
@@ -28,10 +32,10 @@ class CubeWorker:
             return True
 
         running_job_list = CubeWorker.get_current_running_job()
-        print "current running", len(running_job_list), "jobs"
+        print "current running %d jobs" % len(running_job_list)
 
         if running_job_list and len(running_job_list) >= KYLIN_JOB_MAX_COCURRENT:
-            print "will not schedule new jobs this time because running job number >= the max cocurrent job number", KYLIN_JOB_MAX_COCURRENT
+            print "will not schedule new jobs this time because running job number >= the max cocurrent job number %d" % KYLIN_JOB_MAX_COCURRENT
         else:
             max_allow = KYLIN_JOB_MAX_COCURRENT - len(running_job_list)
             for cube_name in CubeWorker.job_instance_dict:
@@ -44,15 +48,15 @@ class CubeWorker:
 
                     if try_cnt >= KYLIN_JOB_MAX_RETRY:
                         # have already tried KYLIN_JOB_MAX_RETRY times
-                        print "Reached KYLIN_JOB_MAX_RETRY for ", cube_name
-                        #CubeWorker.job_instance_dict[cube_name] = 0
+                        print "Reached KYLIN_JOB_MAX_RETRY for %s" % cube_name
+                        CubeWorker.job_instance_dict[cube_name] = 0
                     else:
                         # try to cancel the error cube build segment
                         error_job_list = CubeJob.get_cube_job(cube_name, CubeJob.ERROR_JOB_STATUS)
                         if error_job_list:
                             for error_job in error_job_list:
                                 CubeBuildJob.cancel_job(error_job.uuid)
-                                print "cancel an error job with uuid=", error_job.uuid, "for cube=", cube_name
+                                print "cancel an error job with uuid= %s for cube= %s" % (error_job.uuid, cube_name)
 
                         # run cube job
                         instance_list = None
@@ -90,7 +94,7 @@ class CubeWorker:
                         current_job_instance = CubeBuildJob.rebuild_cube(cube_name, build_request)
 
                         if current_job_instance:
-                            print "schedule a cube build job for cube =", cube_name
+                            print "schedule a cube build job for cube = %s" % cube_name
                             CubeWorker.job_instance_dict[cube_name] = current_job_instance
                             max_allow -= 1
                         CubeWorker.job_retry_dict[cube_name] = try_cnt + 1
@@ -125,10 +129,9 @@ class CubeWorker:
 
             job_instance = CubeWorker.job_instance_dict[cube_name]
             if job_instance is None:
-                print "status of cube =", cube_name, "is NOT STARTED YET"
+                print "status of cube = %s is NOT STARTED YET" % cube_name
             elif isinstance(job_instance, JobInstance):
-                print "status of cube =", cube_name, "is", job_instance.get_status(), "at %d/%d" % (
-                job_instance.get_current_step(), len(job_instance.steps))
+                print "status of cube = %s is %s at %d/%d" % (cube_name, job_instance.get_status(), job_instance.get_current_step(), len(job_instance.steps))
 
     @staticmethod
     def get_current_running_job():
@@ -153,7 +156,7 @@ class CubeWorker:
         for cube_name in CubeWorker.job_instance_dict:
             job_instance = CubeWorker.job_instance_dict[cube_name]
 
-            if job_instance == CubeJobStatus.ERROR:
+            if job_instance == 0:
                 pass
             elif job_instance is None:
                 return False
@@ -161,3 +164,20 @@ class CubeWorker:
                 return False
 
         return True
+        
+    @staticmethod
+    def get_status():
+        if  CubeWorker.all_finished() == False:
+            return CubeWorkerStatus.WORKING
+
+        for cube_name in CubeWorker.job_instance_dict:
+            job_instance = CubeWorker.job_instance_dict[cube_name]
+
+            if job_instance == 0:
+                return CubeWorkerStatus.ERROR
+            elif job_instance is None:
+                return CubeWorkerStatus.ERROR
+            elif isinstance(job_instance, JobInstance) and job_instance.get_status() == CubeJobStatus.ERROR:
+                return CubeWorkerStatus.ERROR
+
+        return CubeWorkerStatus.SUCCESS

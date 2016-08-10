@@ -12,6 +12,8 @@ class CubeJob:
     FINISHED_JOB_STATUS = [4]
     ERROR_JOB_STATUS = [8]
     DISCARDED_JOB_STATUS = [16]
+    WAITING_JOB_STATUS = [32]
+    KILLED_JOB_STATUS = [64]
 
     @staticmethod
     def create_cube(cube_desc, model_desc, project=None):

@@ -1,5 +1,6 @@
 # -*- coding: utf-8 -*-
 __author__ = 'Ni Chunen'
+import sys
 import time
 import datetime
 
@@ -7,11 +8,12 @@ from apscheduler.schedulers.background import BackgroundScheduler
 
 from apscheduler.schedulers.blocking import BlockingScheduler
 
-from scheduler.workers.cube import CubeWorker
+from scheduler.workers.cube import CubeWorker, CubeWorkerStatus
 from jobs.cube import CubeJob
 from models.io.readers import CSVReader
 from jobs.build import CubeBuildJob
 from models.request import JobBuildRequest
+from settings import settings
 
 class ClientJob:
     @staticmethod
@@ -40,10 +42,14 @@ class ClientJob:
                 scheduler.remove_job(check_cube_job_id)
                 scheduler.remove_job(run_cube_job_id)
                 scheduler.shutdown()
-                break
+                
+                status = CubeWorker.get_status()
+                print 'Build exited with status %s' % status
+                return status == CubeWorkerStatus.SUCCESS
 
-            time.sleep(15)
-
+            time.sleep(settings.KYLIN_CHECK_STATUS_INTERVAL)
+            
+            
     @staticmethod
     def init(cube_name_list):
         pass
@@ -84,7 +90,9 @@ class ClientJob:
             else:
                 print 'Bad command line!'
         else:
-            ClientJob.build(cube_name_list, end_time)
+            status = ClientJob.build(cube_name_list, end_time)
+            if(status != True):
+                sys.exit(1)
 
     @staticmethod
     def build_cube_from_names_or_file(buildType, cube_name=None, names_file=None, start_time=None, end_time=None, timed_build=None, crontab_options=None):
@@ -126,8 +134,10 @@ class ClientJob:
             else:
                 print 'Bad command line!'
         else:
-            ClientJob.build(cube_name_list, buildType, start_time, end_time)
-
+            status = ClientJob.build(cube_name_list, buildType, start_time, end_time)
+            if(status != True):
+                sys.exit(1)
+            
     @staticmethod
     def create_cube_from_csv(csv_file, project, database):
         cube_dic_list = CSVReader.get_cube_desc_list_from_csv(csv_file, database)
