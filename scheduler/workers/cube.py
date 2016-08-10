@@ -23,7 +23,7 @@ class CubeWorker:
         pass
 
     @staticmethod
-    def run_cube_job(buildType, starttime, endtime):
+    def run_cube_job(build_type, start_time, end_time):
         if CubeWorker.all_finished():
             return True
 
@@ -44,7 +44,8 @@ class CubeWorker:
 
                     if try_cnt >= KYLIN_JOB_MAX_RETRY:
                         # have already tried KYLIN_JOB_MAX_RETRY times
-                        CubeWorker.job_instance_dict[cube_name] = 0
+                        print "Reached KYLIN_JOB_MAX_RETRY for ", cube_name
+                        #CubeWorker.job_instance_dict[cube_name] = 0
                     else:
                         # try to cancel the error cube build segment
                         error_job_list = CubeJob.get_cube_job(cube_name, CubeJob.ERROR_JOB_STATUS)
@@ -56,32 +57,32 @@ class CubeWorker:
                         # run cube job
                         instance_list = None
                         build_request = JobBuildRequest()
-                        if buildType is not None:
-                            build_request.buildType = buildType
+                        if build_type is not None:
+                            build_request.buildType = build_type
                             
-                        if buildType == JobBuildRequest.REFRESH:
+                        if build_type == JobBuildRequest.REFRESH:
                             instance_list = CubeJob.list_cubes(cube_name)
                             
                             if(len(instance_list) == 0):
                                 raise Exception("Cube does not have segments.")
                             
-                            if starttime is None or endtime is None:
+                            if start_time is None or end_time is None:
                                 segments = [instance_list[0].segments[len(instance_list[0].segments) - 1]]
                             else:
-                                segments = CubeWorker.determine_segment_range(instance_list[0].segments, starttime, endtime)
+                                segments = CubeWorker.determine_segment_range(instance_list[0].segments, start_time, end_time)
                             
                             if(len(segments) < 1):
-                                raise LookupError("Entered date: %s and %s is out of range of segments" % (str(starttime), str(endtime)))
+                                raise LookupError("Entered date: %s and %s is out of range of segments" % (str(start_time), str(end_time)))
                             
                             build_request.startTime = int(segments[0].date_range_start)
                             build_request.endTime = int(segments[len(segments) - 1].date_range_end)
                             number_of_segments = len(segments)
                             print "merging %d segments (%s) from: %s to: %s" % (number_of_segments, ', '.join([s.uuid for s in segments]), build_request.startTime, build_request.endTime)
-                        elif buildType == JobBuildRequest.BUILD:
-                            if endtime is not None:
+                        elif build_type == JobBuildRequest.BUILD:
+                            if end_time is not None:
                                 # build_request.startTime = instance_list[0].segments[instance_list[0].segments.__len__() - 1].date_range_end
                                 build_request.endTime = \
-                                    (int(time.mktime(parser.parse(endtime).timetuple())) - time.timezone) * 1000
+                                    (int(time.mktime(parser.parse(end_time).timetuple())) - time.timezone) * 1000
                             else:
                                 d = datetime.datetime.utcnow()
                                 build_request.endTime = calendar.timegm(d.utctimetuple()) * 1000
@@ -152,7 +153,7 @@ class CubeWorker:
         for cube_name in CubeWorker.job_instance_dict:
             job_instance = CubeWorker.job_instance_dict[cube_name]
 
-            if job_instance == 0:
+            if job_instance == CubeJobStatus.ERROR:
                 pass
             elif job_instance is None:
                 return False
