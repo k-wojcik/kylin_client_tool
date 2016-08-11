@@ -32,11 +32,18 @@ class KylinRestApi:
             # auth and get back cookies
             headers = {}
             headers['content-type'] = 'application/json'
-            req_response = requests.post(kylin_rest_api.get_api_url('user/authentication', ''), \
-                                         auth=HTTPBasicAuth(kylin_rest_api.user, kylin_rest_api.password), timeout=kylin_rest_api.timeout)
+            headers['Connection'] = 'close'
+
+            session = requests.session()
+            try:
+                req_response = session.post(kylin_rest_api.get_api_url('user/authentication', ''), \
+                                            auth=HTTPBasicAuth(kylin_rest_api.user, kylin_rest_api.password), timeout=kylin_rest_api.timeout)
+            finally:
+                session.close()      
+
             return req_response.cookies
 
-        return None
+        return None 
 
     @staticmethod
     def is_response_ok(response):
@@ -51,8 +58,13 @@ class KylinRestApi:
 
         headers = headers if headers and type(headers) == dict else {}
         headers['content-type'] = 'application/json'
+        headers['Connection'] = 'close'
 
-        req_response = requests.get(api_url, headers=headers, cookies=KylinRestApi.cooikes, timeout=self.timeout)
+        session = requests.session()
+        try:
+            req_response = session.get(api_url, headers=headers, cookies=KylinRestApi.cooikes, timeout=self.timeout)
+        finally:
+                session.close()      
 
         return req_response
 
@@ -61,12 +73,17 @@ class KylinRestApi:
 
         headers = headers if headers and type(headers) == dict else {}
         headers['content-type'] = 'application/json'
+        headers['Connection'] = 'close'
 
-        if payload:
-            data = payload if type(payload) == str else json.dumps(payload)
-            req_response = requests.post(api_url, data=data, headers=headers, cookies=KylinRestApi.cooikes, timeout=self.timeout)
-        else:
-            req_response = requests.post(api_url, headers=headers, cookies=KylinRestApi.cooikes, timeout=self.timeout)
+        session = requests.session()
+        try:
+            if payload:
+                data = payload if type(payload) == str else json.dumps(payload)
+                req_response = session.post(api_url, data=data, headers=headers, cookies=KylinRestApi.cooikes)
+            else:
+                req_response = session.post(api_url, headers=headers, cookies=KylinRestApi.cooikes)
+        finally:
+                session.close()      
 
         return req_response
 
@@ -75,12 +92,17 @@ class KylinRestApi:
 
         headers = headers if headers and type(headers) == dict else {}
         headers['content-type'] = 'application/json'
+        headers['Connection'] = 'close'
 
-        if payload:
-            data = payload if type(payload) == str else json.dumps(payload)
-            req_response = requests.put(api_url, data=data, headers=headers, cookies=KylinRestApi.cooikes, timeout=self.timeout)
-        else:
-            req_response = requests.put(api_url, headers=headers, cookies=KylinRestApi.cooikes, timeout=self.timeout)
+        session = requests.session()
+        try:
+            if payload:
+                data = payload if type(payload) == str else json.dumps(payload)
+                req_response = session.put(api_url, data=data, headers=headers, cookies=KylinRestApi.cooikes, timeout=self.timeout, verify=False)
+            else:
+                req_response = session.put(api_url, headers=headers, cookies=KylinRestApi.cooikes, timeout=self.timeout, verify=False)                
+        finally:
+            session.close()                
 
         return req_response
 
@@ -89,14 +111,18 @@ class KylinRestApi:
 
         headers = headers if headers and type(headers) == dict else {}
         headers['content-type'] = 'application/json'
+        headers['Connection'] = 'close'
 
         # print payload
-
-        if payload:
-            data = payload if type(payload) == str else json.dumps(payload)
-            req_response = requests.delete(api_url, data=data, headers=headers, cookies=KylinRestApi.cooikes, timeout=self.timeout)
-        else:
-            req_response = requests.delete(api_url, headers=headers, cookies=KylinRestApi.cooikes, timeout=self.timeout)
+        session = requests.session()
+        try:
+            if payload:
+                data = payload if type(payload) == str else json.dumps(payload)
+                req_response = session.delete(api_url, data=data, headers=headers, cookies=KylinRestApi.cooikes, timeout=self.timeout)
+            else:
+                req_response = session.delete(api_url, headers=headers, cookies=KylinRestApi.cooikes, timeout=self.timeout)
+        finally:
+            session.close()      
 
         # print str(req_response.json())
 
